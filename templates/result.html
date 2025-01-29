@@ -1,19 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Sonuçlar</title>
+    <title>Analysis Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .section { margin-bottom: 30px; padding: 20px; background-color: #f9f9f9; border-radius: 8px; }
+        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
+        pre { white-space: pre-wrap; background-color: #fff; padding: 15px; border-radius: 5px; }
+    </style>
 </head>
 <body>
-    <h1>{{ title }}</h1>
-    <h3>Kanal: {{ channel }}</h3>
-    
-    <h2>Özet</h2>
-    <p>{{ summary }}</p>
-    
-    <h2>Video Açıklaması</h2>
-    <p>{{ description }}</p>
-    
-    <h2>Tam Transkript</h2>
-    <div style="white-space: pre-wrap;">{{ transcript }}</div>
+    <div class="section">
+        <h1>{{ title }}</h1>
+        <h3>Channel: {{ channel }}</h3>
+    </div>
+
+    <div class="section">
+        <h2>Summary</h2>
+        <pre>{{ summary }}</pre>
+    </div>
+
+    <div class="section">
+        <h2>AI Analysis</h2>
+        <pre>{{ ai_analysis }}</pre>
+    </div>
+
+    <div class="section">
+        <h2>Video Description</h2>
+        <pre>{{ description }}</pre>
+    </div>
+
+    <div class="section">
+        <h2>Full Transcript</h2>
+        <pre>{{ transcript }}</pre>
+    </div>
 </body>
 </html>

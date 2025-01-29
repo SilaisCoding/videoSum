@@ -1,16 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>YouTube Video Özetleyici</title>
+    <title>YouTube Video Analyzer</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        input[type="text"] { width: 70%; padding: 8px; }
+        button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        .error { color: red; }
+    </style>
 </head>
 <body>
-    <h1>YouTube Video Analiz Aracı</h1>
+    <h1>YouTube Video Analysis Tool</h1>
     {% if error %}
-        <p style="color: red;">{{ error }}</p>
+        <p class="error">{{ error }}</p>
     {% endif %}
     <form method="POST">
-        <input type="text" name="url" placeholder="YouTube URL girin" size="50">
-        <button type="submit">Analiz Et</button>
+        <input type="text" name="url" placeholder="Enter YouTube URL" required>
+        <button type="submit">Analyze</button>
     </form>
 </body>
 </html>
