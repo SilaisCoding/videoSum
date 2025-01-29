@@ -6,26 +6,27 @@ import re
 import ollama
 import os
 
-load_dotenv()
-API_KEY = os.getenv("API_KEY")  
+dotenv_path = "C:\\Users\\burak\\OneDrive\\Desktop\\videoSum\\myenv\\.env"
+load_dotenv(dotenv_path=dotenv_path)
 
+API_KEY = os.getenv("API_KEY")
 app = Flask(__name__)
 
 def get_video_id(url):
-    """YouTube video ID'sini URL'den çeker"""
+    """YouTube pulls video ID from URL"""
     regex = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
     match = re.search(regex, url)
     return match.group(1) if match else None
 
 def get_video_details(video_id):
-    """YouTube API ile video başlığı, kanal adı ve açıklamayı getirir"""
+    """Fetches video title, channel name and description with YouTube API"""
     youtube = build('youtube', 'v3', developerKey=API_KEY)
     request = youtube.videos().list(part="snippet", id=video_id)
     response = request.execute()
     return response['items'][0]['snippet']
 
 def get_transcript(video_id):
-    """Videonun altyazısını alır ve dili tespit eder"""
+    """Receives the subtitles of the video and detects the language"""
     try:
         transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)  
 
@@ -50,9 +51,12 @@ def summarize_with_ollama(text, lang):
     """Ollama kullanarak videonun özetini oluşturur"""
     try:
         prompt = f"""
-        Aşağıdaki videonun {lang.upper()} dilindeki tam transkriptini özetle:
+        Aşağıdaki videonun {lang.upper()} dilindeki tam transkriptini detaylıca özetle:
         - En önemli noktaları kısa ve net olarak sun.
         - Konunun genel anlamını bozmadan, gereksiz detayları çıkar.
+        - Temel argümanları ve sonuçları vurgula.
+        - Videonun ana mesajını özetle ve belirtilen hedef kitlenin ilgisini çekecek şekilde sun.
+        - Videonun içeriğiyle ilgili olası sorular veya tartışma konuları ekle.
         
         Transcript: {text}
         """
@@ -70,11 +74,14 @@ def analyze_with_ollama(summary, lang):
     """Ollama kullanarak videoyu verilen dilde analiz eder"""
     try:
         prompt = f"""
-        Aşağıdaki video özeti {lang.upper()} dilinde. Lütfen analiz et:
-        1. Anahtar fikirler ve ana noktalar
-        2. Olası önyargılar veya eksik bakış açıları
-        3. Daha fazla araştırılabilecek ilgili konular
-        4. Sunulan argümanların eleştirisi
+        Aşağıdaki video özeti {lang.upper()} dilinde. Lütfen detaylı analiz et:
+        1. Anahtar fikirler ve ana noktalar.
+        2. Olası önyargılar veya eksik bakış açıları.
+        3. Daha fazla araştırılabilecek ilgili konular.
+        4. Sunulan argümanların eleştirisi.
+        5. Ek bilgi veya bağlamın gerekli olduğu yerler.
+        6. Videonun kaynaklarının ve kanıtlarının güvenilirliği.
+        7. Videonun hedef kitlesi ve hedeflerine uygun olup olmadığı.
         
         Özet: {summary}
         """
