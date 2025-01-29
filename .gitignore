@@ -2,3 +2,6 @@
 
 /.pytest_cache
 /.vscode
+/.tests
+
+huggingface.text

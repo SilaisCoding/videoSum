@@ -3,17 +3,19 @@
 <head>
     <title>YouTube Video Analyzer</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-        input[type="text"] { width: 70%; padding: 8px; }
-        button { padding: 8px 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center; }
+        input[type="text"] { width: 70%; padding: 10px; font-size: 16px; margin: 10px 0; }
+        button { padding: 10px 16px; background-color: #4CAF50; color: white; border: none; cursor: pointer; font-size: 16px; }
         .error { color: red; }
     </style>
 </head>
 <body>
     <h1>YouTube Video Analysis Tool</h1>
+    
     {% if error %}
         <p class="error">{{ error }}</p>
     {% endif %}
+
     <form method="POST">
         <input type="text" name="url" placeholder="Enter YouTube URL" required>
         <button type="submit">Analyze</button>

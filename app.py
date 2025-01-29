@@ -1,46 +1,60 @@
 from flask import Flask, render_template, request
-from youtube_transcript_api import YouTubeTranscriptApi
-from sumy.parsers.plaintext import PlaintextParser
-from sumy.nlp.tokenizers import Tokenizer
-from sumy.summarizers.lsa import LsaSummarizer
+from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from googleapiclient.discovery import build
-from myenv import load_dotenv
+from dotenv import load_dotenv
 import re
 import ollama
 import os
 
 load_dotenv()
+API_KEY = os.getenv("API_KEY")  
 
 app = Flask(__name__)
-API_KEY = os.getenv("API_KEY")
 
 def get_video_id(url):
+    """YouTube video ID'sini URL'den çeker"""
     regex = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
     match = re.search(regex, url)
     return match.group(1) if match else None
 
 def get_video_details(video_id):
+    """YouTube API ile video başlığı, kanal adı ve açıklamayı getirir"""
     youtube = build('youtube', 'v3', developerKey=API_KEY)
     request = youtube.videos().list(part="snippet", id=video_id)
     response = request.execute()
     return response['items'][0]['snippet']
 
-def summarize_text(text, sentences_count=5):
-    parser = PlaintextParser.from_string(text, Tokenizer("english"))
-    summarizer = LsaSummarizer()
-    summary = summarizer(parser.document, sentences_count)
-    return " ".join([str(sentence) for sentence in summary])
+def get_transcript(video_id):
+    """Videonun altyazısını alır ve dili tespit eder"""
+    try:
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)  
 
-def analyze_with_llama(text):
+        try:
+            transcript = transcript_list.find_transcript(['tr'])  
+            return " ".join([t['text'] for t in transcript.fetch()]), "tr"
+        except:
+            pass  
+
+        try:
+            transcript = transcript_list.find_transcript(['en', 'auto'])
+            return " ".join([t['text'] for t in transcript.fetch()]), transcript.language_code
+        except:
+            pass  
+
+        return None, None  
+
+    except (TranscriptsDisabled, NoTranscriptFound):
+        return None, None  
+
+def summarize_with_ollama(text, lang):
+    """Ollama kullanarak videonun özetini oluşturur"""
     try:
         prompt = f"""
-        Analyze the following video summary and provide:
-        1. Key insights and main points
-        2. Potential biases or missing perspectives
-        3. Related topics for further research
-        4. Critical analysis of arguments presented
+        Aşağıdaki videonun {lang.upper()} dilindeki tam transkriptini özetle:
+        - En önemli noktaları kısa ve net olarak sun.
+        - Konunun genel anlamını bozmadan, gereksiz detayları çıkar.
         
-        Summary: {text}
+        Transcript: {text}
         """
         
         response = ollama.chat(
@@ -48,42 +62,61 @@ def analyze_with_llama(text):
             messages=[{'role': 'user', 'content': prompt}]
         )
         return response['message']['content']
-    
+
     except Exception as e:
-        return f"AI Analysis Error: {str(e)}"
+        return f"Özetleme Hatası: {str(e)}"
+
+def analyze_with_ollama(summary, lang):
+    """Ollama kullanarak videoyu verilen dilde analiz eder"""
+    try:
+        prompt = f"""
+        Aşağıdaki video özeti {lang.upper()} dilinde. Lütfen analiz et:
+        1. Anahtar fikirler ve ana noktalar
+        2. Olası önyargılar veya eksik bakış açıları
+        3. Daha fazla araştırılabilecek ilgili konular
+        4. Sunulan argümanların eleştirisi
+        
+        Özet: {summary}
+        """
+        
+        response = ollama.chat(
+            model='llama3',
+            messages=[{'role': 'user', 'content': prompt}]
+        )
+        return response['message']['content']
+
+    except Exception as e:
+        return f"Analysis Error: {str(e)}"
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         url = request.form['url']
         video_id = get_video_id(url)
-        
+
         try:
-            # Get transcript
-            transcript = YouTubeTranscriptApi.get_transcript(video_id)
-            text = " ".join([t['text'] for t in transcript])
-            
-            # Summarize
-            summary = summarize_text(text)
-            
-            # AI Analysis
-            ai_analysis = analyze_with_llama(summary)
-            
-            # Get video details
+            transcript, lang = get_transcript(video_id)
+            if transcript is None:
+                return render_template('index.html', error="No subtitles found for this video.")
+
+            summary = summarize_with_ollama(transcript, lang)
+
+            ai_analysis = analyze_with_ollama(summary, lang)
+
             details = get_video_details(video_id)
-            
+
             return render_template('result.html', 
-                                title=details['title'],
-                                channel=details['channelTitle'],
-                                description=details['description'],
-                                summary=summary,
-                                transcript=text,
-                                ai_analysis=ai_analysis)
-        
+                                   title=details['title'],
+                                   channel=details['channelTitle'],
+                                   description=details['description'],
+                                   summary=summary,
+                                   transcript=transcript,
+                                   ai_analysis=ai_analysis,
+                                   lang=lang)
+
         except Exception as e:
-            error = f"Error: {str(e)}"
-            return render_template('index.html', error=error)
-    
+            return render_template('index.html', error=f"Hata: {str(e)}")
+
     return render_template('index.html')
 
 if __name__ == '__main__':
