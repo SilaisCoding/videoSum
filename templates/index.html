@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>YouTube Video Özetleyici</title>
+</head>
+<body>
+    <h1>YouTube Video Analiz Aracı</h1>
+    {% if error %}
+        <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <form method="POST">
+        <input type="text" name="url" placeholder="YouTube URL girin" size="50">
+        <button type="submit">Analiz Et</button>
+    </form>
+</body>
+</html>
