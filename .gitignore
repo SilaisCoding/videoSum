@@ -1,2 +1,4 @@
 /myenv
 
+/.pytest_cache
+/.vscode
