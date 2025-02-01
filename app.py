@@ -6,92 +6,86 @@ import re
 import ollama
 import os
 
-dotenv_path = "Write your .env file path"
+dotenv_path = "Write your .env file path here"
 load_dotenv(dotenv_path=dotenv_path)
-
 API_KEY = os.getenv("API_KEY")
+
 app = Flask(__name__)
 
 def get_video_id(url):
-    """YouTube pulls video ID from URL"""
+    """Extracts YouTube video ID from URL"""
     regex = r"(?:v=|\/)([0-9A-Za-z_-]{11}).*"
     match = re.search(regex, url)
     return match.group(1) if match else None
 
 def get_video_details(video_id):
-    """Fetches video title, channel name and description with YouTube API"""
+    """Fetches video title, channel name, and description using the YouTube API"""
     youtube = build('youtube', 'v3', developerKey=API_KEY)
     request = youtube.videos().list(part="snippet", id=video_id)
     response = request.execute()
     return response['items'][0]['snippet']
 
 def get_transcript(video_id):
-    """Receives the subtitles of the video and detects the language"""
+    """Retrieves the transcript of the video and detects the language"""
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)  
-
+        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
         try:
-            transcript = transcript_list.find_transcript(['tr'])  
+            transcript = transcript_list.find_transcript(['tr'])
             return " ".join([t['text'] for t in transcript.fetch()]), "tr"
         except:
-            pass  
-
+            pass
         try:
             transcript = transcript_list.find_transcript(['en', 'auto'])
             return " ".join([t['text'] for t in transcript.fetch()]), transcript.language_code
         except:
-            pass  
-
-        return None, None  
-
+            pass
+        return None, None
     except (TranscriptsDisabled, NoTranscriptFound):
-        return None, None  
+        return None, None
 
 def summarize_with_ollama(text, lang):
-    """Ollama kullanarak videonun özetini oluşturur"""
+    """Uses Ollama to generate a detailed summary of the video"""
     try:
         prompt = f"""
-        Aşağıdaki videonun {lang.upper()} dilindeki tam transkriptini detaylıca özetle:
-        - En önemli noktaları kısa ve net olarak sun.
-        - Konunun genel anlamını bozmadan, gereksiz detayları çıkar.
-        - Temel argümanları ve sonuçları vurgula.
-        - Videonun ana mesajını özetle ve belirtilen hedef kitlenin ilgisini çekecek şekilde sun.
-        - Videonun içeriğiyle ilgili olası sorular veya tartışma konuları ekle.
+        Summarize the following {lang.upper()} transcript in detail:
+        - Highlight the most important points concisely.
+        - Maintain the overall meaning without unnecessary details.
+        - Emphasize key arguments and conclusions.
+        - Provide a clear overview of the main message.
+        - Include potential questions or discussion topics related to the content.
+        - Ensure the summary is engaging and relevant to the target audience.
         
         Transcript: {text}
         """
-        
         response = ollama.chat(
             model='llama3',
             messages=[{'role': 'user', 'content': prompt}]
         )
         return response['message']['content']
-
     except Exception as e:
-        return f"Özetleme Hatası: {str(e)}"
+        return f"Summary Error: {str(e)}"
 
 def analyze_with_ollama(summary, lang):
-    """Ollama kullanarak videoyu verilen dilde analiz eder"""
+    """Uses Ollama to perform an in-depth analysis of the video"""
     try:
         prompt = f"""
-        Aşağıdaki video özeti {lang.upper()} dilinde. Lütfen detaylı analiz et:
-        1. Anahtar fikirler ve ana noktalar.
-        2. Olası önyargılar veya eksik bakış açıları.
-        3. Daha fazla araştırılabilecek ilgili konular.
-        4. Sunulan argümanların eleştirisi.
-        5. Ek bilgi veya bağlamın gerekli olduğu yerler.
-        6. Videonun kaynaklarının ve kanıtlarının güvenilirliği.
-        7. Videonun hedef kitlesi ve hedeflerine uygun olup olmadığı.
+        Analyze the following {lang.upper()} video summary in detail:
+        1. Key ideas and main points.
+        2. Potential biases or missing perspectives.
+        3. Related topics that could be explored further.
+        4. Critique of the arguments presented.
+        5. Areas where additional context or information is needed.
+        6. Reliability of the sources and evidence used in the video.
+        7. Suitability of the video for its target audience and objectives.
+        8. Suggestions for improving the clarity and impact of the content.
         
-        Özet: {summary}
+        Summary: {summary}
         """
-        
         response = ollama.chat(
             model='llama3',
             messages=[{'role': 'user', 'content': prompt}]
         )
         return response['message']['content']
-
     except Exception as e:
         return f"Analysis Error: {str(e)}"
 
@@ -100,18 +94,15 @@ def index():
     if request.method == 'POST':
         url = request.form['url']
         video_id = get_video_id(url)
-
+        if not video_id:
+            return render_template('index.html', error="Invalid YouTube URL.")
         try:
             transcript, lang = get_transcript(video_id)
             if transcript is None:
                 return render_template('index.html', error="No subtitles found for this video.")
-
             summary = summarize_with_ollama(transcript, lang)
-
             ai_analysis = analyze_with_ollama(summary, lang)
-
             details = get_video_details(video_id)
-
             return render_template('result.html', 
                                    title=details['title'],
                                    channel=details['channelTitle'],
@@ -120,10 +111,8 @@ def index():
                                    transcript=transcript,
                                    ai_analysis=ai_analysis,
                                    lang=lang)
-
         except Exception as e:
-            return render_template('index.html', error=f"Hata: {str(e)}")
-
+            return render_template('index.html', error=f"Error: {str(e)}")
     return render_template('index.html')
 
 if __name__ == '__main__':
