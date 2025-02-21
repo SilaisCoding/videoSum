@@ -6,7 +6,7 @@ import re
 import ollama
 import os
 
-dotenv_path = "Write your .env file path here"
+dotenv_path = "C:\\Users\\burak\\OneDrive\\Desktop\\videoSum\\myenv\\.env"
 load_dotenv(dotenv_path=dotenv_path)
 API_KEY = os.getenv("API_KEY")
 
