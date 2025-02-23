@@ -1,11 +1,16 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, send_file
 from youtube_transcript_api import YouTubeTranscriptApi, TranscriptsDisabled, NoTranscriptFound
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 import re
 import ollama
 import os
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
+# Load environment variables
 dotenv_path = "C:\\Users\\burak\\OneDrive\\Desktop\\videoSum\\myenv\\.env"
 load_dotenv(dotenv_path=dotenv_path)
 API_KEY = os.getenv("API_KEY")
@@ -89,6 +94,87 @@ def analyze_with_ollama(summary, lang):
     except Exception as e:
         return f"Analysis Error: {str(e)}"
 
+def clean_text(text):
+    """
+    Removes unsupported characters and ensures text is compatible with ReportLab.
+    Also removes '**' markers around headings.
+    """
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'[^\x00-\x7F]+', '', text)
+    return text
+
+def create_pdf(title, channel, summary, ai_analysis, lang, output_path):
+    """Creates a PDF file with the analysis results."""
+    # Create a PDF document
+    doc = SimpleDocTemplate(output_path, pagesize=letter)
+    styles = getSampleStyleSheet()
+
+    heading_style = ParagraphStyle(
+        name='HeadingStyle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        leading=20,
+        spaceAfter=20  
+    )
+    subheading_style = ParagraphStyle(
+        name='SubheadingStyle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        leading=18,
+        spaceAfter=15  
+    )
+
+    story = []
+
+    # Title and Channel
+    title_style = styles["Title"]
+    story.append(Paragraph(clean_text(title), title_style))
+    channel_style = styles["Heading2"]
+    story.append(Paragraph(f"Channel: {clean_text(channel)}", channel_style))
+    story.append(Spacer(1, 20))  
+
+    # Summary Section
+    story.append(Paragraph("Summary", subheading_style))
+    normal_style = styles["Normal"]
+    
+    # Split summary into lines and add extra spacing between numbered items
+    previous_line_was_numbered = False
+    for line in clean_text(summary).split('\n'):
+        if re.match(r'^\d+\.', line):
+            if previous_line_was_numbered:
+                story.append(Spacer(1, 10))
+            else:
+                story.append(Spacer(1, 10))
+            story.append(Paragraph(line, normal_style))
+            previous_line_was_numbered = True
+        else:
+            if previous_line_was_numbered:
+                story.append(Spacer(1, 10))
+            story.append(Paragraph(line, normal_style))
+            previous_line_was_numbered = False
+    
+    story.append(Spacer(1, 20))
+
+    # AI Analysis Section
+    story.append(Paragraph("AI Analysis", subheading_style))
+    previous_line_was_numbered = False
+    for line in clean_text(ai_analysis).split('\n'):
+        if re.match(r'^\d+\.', line):
+            if previous_line_was_numbered:
+                story.append(Spacer(1, 10))
+            else:
+                story.append(Spacer(1, 10))
+            story.append(Paragraph(line, normal_style))
+            previous_line_was_numbered = True
+        else:
+            if previous_line_was_numbered:
+                story.append(Spacer(1, 10))
+            story.append(Paragraph(line, normal_style))
+            previous_line_was_numbered = False
+
+    # Build the PDF
+    doc.build(story)
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -114,6 +200,22 @@ def index():
         except Exception as e:
             return render_template('index.html', error=f"Error: {str(e)}")
     return render_template('index.html')
+
+@app.route('/download_pdf', methods=['POST'])
+def download_pdf():
+    data = request.form
+    title = data['title']
+    channel = data['channel']
+    summary = data['summary']
+    ai_analysis = data['ai_analysis']
+    lang = data['lang']
+
+    # Create PDF
+    pdf_path = "output.pdf"
+    create_pdf(title, channel, summary, ai_analysis, lang, pdf_path)
+
+    # Send PDF to user
+    return send_file(pdf_path, as_attachment=True)
 
 if __name__ == '__main__':
     app.run(debug=True)

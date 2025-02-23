@@ -13,19 +13,30 @@
             <h1 class="text-3xl font-bold text-gray-800">{{ title }}</h1>
             <h3 class="text-lg text-gray-600">Channel: {{ channel }}</h3>
         </div>
-
         <!-- Summary Section -->
         <div class="bg-gray-50 p-6 rounded-lg">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Summary</h2>
-            <pre class="text-gray-700 whitespace-pre-wrap">{{ summary }}</pre>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Summary</h2>
+            <pre class="text-gray-700 whitespace-pre-wrap">{{ summary | replace("**", "") }}</pre>
         </div>
-
         <!-- AI Analysis Section -->
         <div class="bg-gray-50 p-6 rounded-lg">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">AI Analysis</h2>
-            <pre class="text-gray-700 whitespace-pre-wrap">{{ ai_analysis }}</pre>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">AI Analysis</h2>
+            <pre class="text-gray-700 whitespace-pre-wrap">{{ ai_analysis | replace("**", "") }}</pre>
         </div>
-
+        <!-- Download PDF Button -->
+        <form id="pdfForm" action="/download_pdf" method="POST" style="display: none;">
+            <input type="hidden" name="title" value="{{ title }}">
+            <input type="hidden" name="channel" value="{{ channel }}">
+            <input type="hidden" name="summary" value="{{ summary }}">
+            <input type="hidden" name="ai_analysis" value="{{ ai_analysis }}">
+            <input type="hidden" name="lang" value="{{ lang }}">
+        </form>
+        <button 
+            onclick="document.getElementById('pdfForm').submit();"
+            class="block text-center bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300"
+        >
+            Download as PDF
+        </button>
         <!-- Back Button -->
         <a 
             href="/" 
